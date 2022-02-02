@@ -41,10 +41,10 @@ String deviceid = "kkn0001";
 
 /* MQTT Connect */
 //Test server
-const char* mqttServer = "kraiwich.thddns.net";
+const char* mqttServer = "=========";
 const int mqttPort = 4441;
-const char* mqttUser = "kraiwich";
-const char* mqttPassword = "kraiwich1234";
+const char* mqttUser = "======";
+const char* mqttPassword = "========";
 char mqtt_name_id[] = "";
 const char* pubTopic = "kraiwich/project";
 
