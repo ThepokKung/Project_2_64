@@ -3,23 +3,25 @@
 #include <DHT.h>
 #include <Arduino.h>
 #include <Wire.h>
-#include <BMP180I2C.h>
+//#include <BMP180I2C.h>
 #include <ArduinoJson.h>
 #include <WiFiManager.h>
 #include <PubSubClient.h>
+#include <LiquidCrystal_I2C.h>
 
 /* Define */
 #define DHTPIN D1
 #define DHTTYPE DHT11
 #define BMP_I2C_ADD 0x77
+#define Pull_But D5
 
 /*  */
 DHT dht(DHTPIN, DHTTYPE);
-BMP180I2C bmp180(BMP_I2C_ADD);
+//BMP180I2C bmp180(BMP_I2C_ADD);
 SoftwareSerial mySerial(D2, D3); // RX, TX
 WiFiClient espClient;
-WiFiManager wm;
 PubSubClient mqtt(espClient);
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 /* Global Value */
 unsigned int pm1 = 0;
@@ -40,23 +42,32 @@ char buffer[256];
 String deviceid = "kkn0001";
 
 /* MQTT Connect */
-//Test server
-const char* mqttServer = "=========";
+const char* mqttServer = "kraiwich.thddns.net";
 const int mqttPort = 4441;
-const char* mqttUser = "======";
-const char* mqttPassword = "========";
+const char* mqttUser = "kraiwich";
+const char* mqttPassword = "kraiwich1234";
 char mqtt_name_id[] = "";
 const char* pubTopic = "kraiwich/project";
 
 void setup() {
   Serial.begin(9600);
+  lcd.begin();
+  lcd.backlight();
+  lcd.print("Welcome to PPM");
+  lcd.setCursor(0, 1);
+  lcd.print("Waiting    Setup");
   while (!Serial) ;
   mySerial.begin(9600);
+  pinMode(Pull_But, INPUT_PULLUP);
   Setup_WM();
   dht.begin();
-  Setup_BMP();
+  //Setup_BMP();
   MQTT_connect();
   delay(1000);
+  lcd.setCursor(0, 1);
+  lcd.print("Setup  Finsh....");
+  delay(500);
+  lcd.clear();
 }
 
 void loop() {
@@ -68,10 +79,10 @@ void loop() {
   }
   mqtt.loop();
 
-
   Read_PM();
   Read_DHT();
-  Read_BMP();
+  //Read_BMP();
+  lcd_Show_16_2(pm1, pm2_5, dht_temp, dht_hum);
   Serial.println("=================");
   send_data();
   Serial.println("=================");
@@ -80,10 +91,32 @@ void loop() {
 void Setup_WM() {
   WiFi.mode(WIFI_STA);
 
-  bool res;
-  res = wm.autoConnect("AutoConnectAP", "password");
+  WiFiManager wm;
 
-  //wm.resetSettings();
+  /*
+  for (int i = 5; i > -1; i--) {
+    delay(1000);
+    lcd.print("Press For Res WM");
+    int But_S = digitalRead(Pull_But);
+    Serial.print("Time out in : ");
+    lcd.print("Timeout in : ");
+    Serial.println(i);
+    lcd.setCursor(13, 1);
+    lcd.print(i);
+    Serial.print("Button Status : ");
+    Serial.println(But_S);
+    if (But_S == HIGH) {
+      wm.resetSettings();
+      lcd.setCursor(0, 1);
+      lcd.print("Reset WM Waiting");
+      break;
+    }
+    Serial.println("=======");
+  }
+  */
+
+  bool res;
+  res = wm.autoConnect("Project_2_64");
 
   if (!res) {
     Serial.println("Failed to connect");
@@ -94,6 +127,8 @@ void Setup_WM() {
     Serial.println("connected...yeey :)");
   }
 }
+
+/*
 void Setup_BMP() {
   Wire.begin();
   if (!bmp180.begin())
@@ -104,6 +139,7 @@ void Setup_BMP() {
   bmp180.resetToDefaults();
   bmp180.setSamplingMode(BMP180MI::MODE_UHR);
 }
+*/
 
 void Read_PM() {
   int index = 0;
@@ -167,6 +203,7 @@ void Read_DHT() {
   Serial.println("C");
 }
 
+/*
 void Read_BMP() {
   if (!bmp180.measureTemperature())
   {
@@ -202,6 +239,7 @@ void Read_BMP() {
   Serial.print(bmp_press);
   Serial.println(" Pa");
 }
+*/
 
 void save_data() {
   doc["deviceid"] = deviceid;
@@ -210,8 +248,8 @@ void save_data() {
   doc["pm10"] = pm10;
   doc["dht_hum"] = dht_hum;
   doc["dht_temp"] = dht_temp;
-  doc["bmp_temp"] = bmp_temp;
-  doc["bmp_press"] = bmp_press;
+  //doc["bmp_temp"] = bmp_temp;
+  //doc["bmp_press"] = bmp_press;
 }
 
 void send_data() {
@@ -222,62 +260,11 @@ void send_data() {
     Serial.println("Check_time : " + String(check_time));
     check_time++;
   }
-  if (check_time >= 30) {
+  if (check_time >= 15) {
     save_data();
     /* MQTT Send to mqtt*/
     MQTT_senddata();
     /* Reset */
     check_time = 0;
   }
-}
-
-void MQTT_callback(char* topic, byte * payload, unsigned int length) {
-  Serial.print("Message arrived [");
-  Serial.print(topic);
-  Serial.print("] ");
-  for (int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
-  }
-  Serial.println();
-}
-
-void MQTT_connect() {
-  Serial.print("Set mqtt server :");
-  mqtt.setServer(mqttServer, mqttPort);
-  mqtt.setCallback(MQTT_callback);
-  Serial.println(" Done ");
-  delay(100);
-}
-
-void MQTT_reconnect() {
-  while (!mqtt.connected()) {
-    Serial.print("Attempting MQTT connection...");
-    // Attempt to connect
-    if (mqtt.connect(mqtt_name_id, mqttUser, mqttPassword)) {
-      Serial.println("-> MQTT mqtt connected");
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(mqtt.state());
-      Serial.println("-> try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
-    }
-  }
-}
-
-void MQTT_senddata() {
-  size_t n = serializeJson(doc, buffer);
-  if (mqtt.connect(mqtt_name_id, mqttUser, mqttPassword)) {
-    Serial.println("\nConnected MQTT: ");
-    if (mqtt.publish(pubTopic, buffer , n) == true) {
-      Serial.println("publish success");
-    } else {
-      Serial.println("publish Fail");
-    }
-  } else {
-    Serial.println("Connect Fail MQTT");
-  }
-  Serial.println("====== JSON BODY =======");
-  serializeJsonPretty(doc, Serial);
-  Serial.println("======= JSON BODY END ======");
 }
