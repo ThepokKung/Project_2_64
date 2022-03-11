@@ -10,15 +10,15 @@
 #include <LiquidCrystal_I2C.h>
 
 /* Define */
-#define DHTPIN D1
-#define DHTTYPE DHT11
+#define DHTPIN 3
+#define DHTTYPE DHT22
 #define BMP_I2C_ADD 0x77
 #define Pull_But D5
 
 /*  */
 DHT dht(DHTPIN, DHTTYPE);
 //BMP180I2C bmp180(BMP_I2C_ADD);
-SoftwareSerial mySerial(D2, D3); // RX, TX
+SoftwareSerial mySerial(D7, D8); // RX, TX
 WiFiClient espClient;
 PubSubClient mqtt(espClient);
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -53,6 +53,8 @@ void setup() {
   Serial.begin(9600);
   lcd.begin();
   lcd.backlight();
+  delay(500);
+  lcd.clear();
   lcd.print("Welcome to PPM");
   lcd.setCursor(0, 1);
   lcd.print("Waiting    Setup");
@@ -65,7 +67,7 @@ void setup() {
   MQTT_connect();
   delay(1000);
   lcd.setCursor(0, 1);
-  lcd.print("Setup  Finsh....");
+  lcd.print("Setup  Finsh.....");
   delay(500);
   lcd.clear();
 }

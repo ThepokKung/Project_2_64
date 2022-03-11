@@ -1,4 +1,5 @@
 void lcd_Show_16_2(int pm1,int pm2_5,int dtemp,int dhum){
+  lcd.clear();
   lcd.print("PM1:");
   lcd.setCursor(4,0);
   lcd.print(pm1);
